@@ -79,6 +79,33 @@ st.markdown(f"""
         font-weight: 600;
         font-size: 0.85rem;
     }}
+    /* Prominent top-level tabs */
+    div[data-testid="stTabs"] > div[role="tablist"] {{
+        background: linear-gradient(135deg, {COLORS['navy']} 0%, #1a2d4a 100%);
+        border-radius: 10px;
+        padding: 6px 8px;
+        gap: 4px;
+        margin-bottom: 16px;
+    }}
+    div[data-testid="stTabs"] > div[role="tablist"] > button {{
+        font-size: 1.1rem;
+        font-weight: 700;
+        padding: 10px 28px;
+        border-radius: 8px;
+        color: {COLORS['mid_grey']};
+        border: none;
+    }}
+    div[data-testid="stTabs"] > div[role="tablist"] > button[aria-selected="true"] {{
+        background-color: {COLORS['teal']};
+        color: white;
+    }}
+    div[data-testid="stTabs"] > div[role="tablist"] > button:hover {{
+        color: white;
+    }}
+    /* Hide the default tab underline */
+    div[data-testid="stTabs"] > div[role="tablist"] > button[aria-selected="true"]::after {{
+        display: none;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
