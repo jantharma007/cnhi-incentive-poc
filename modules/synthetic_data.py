@@ -1,5 +1,7 @@
 """Synthetic patient population generator for CNHI POC."""
 
+from __future__ import annotations
+
 import uuid
 import numpy as np
 import pandas as pd
@@ -9,14 +11,14 @@ from config.demographics import (
     DISEASE_PREVALENCE,
     COMORBIDITY_SECOND_CHANCE,
     COMORBIDITY_THIRD_CHANCE,
-    PROVIDER_PROFILES,
+    CLUSTER_PROFILES,
     ICD10_CODES,
 )
 from config.defaults import RANDOM_SEED, TOTAL_PATIENTS
 
 
 def _sample_ages(n: int, skew: str, rng: np.random.Generator) -> np.ndarray:
-    """Sample ages respecting Saudi demographic distribution with provider skew."""
+    """Sample ages respecting Saudi demographic distribution with cluster skew."""
     bands = AGE_DISTRIBUTION  # (min, max, proportion)
 
     if skew == "older":
@@ -57,7 +59,7 @@ def _assign_diseases(
     conditions = ["diabetes", "obesity", "cvd", "respiratory", "mental_health"]
     flags = {}
 
-    # Phase 1: independent base rates (adjusted by provider multiplier)
+    # Phase 1: independent base rates (adjusted by cluster multiplier)
     for cond in conditions:
         probs = np.array([_get_prevalence_rate(cond, a) for a in ages])
         probs = np.clip(probs * disease_mult, 0, 0.95)
@@ -109,9 +111,9 @@ def generate_population(seed: int = RANDOM_SEED) -> pd.DataFrame:
     """
     rng = np.random.default_rng(seed)
 
-    profiles = PROVIDER_PROFILES
+    profiles = CLUSTER_PROFILES
     target_total = TOTAL_PATIENTS
-    sizes = {pid: p["target_size"] for pid, p in profiles.items()}
+    sizes = {cid: p["target_size"] for cid, p in profiles.items()}
 
     # Ensure sizes sum to target total
     total = sum(sizes.values())
@@ -120,8 +122,8 @@ def generate_population(seed: int = RANDOM_SEED) -> pd.DataFrame:
 
     all_dfs = []
 
-    for provider_id, profile in profiles.items():
-        n = sizes[provider_id]
+    for cluster_id, profile in profiles.items():
+        n = sizes[cluster_id]
 
         ages = _sample_ages(n, profile["age_skew"], rng)
         sexes = rng.choice(["M", "F"], size=n)
@@ -145,7 +147,7 @@ def generate_population(seed: int = RANDOM_SEED) -> pd.DataFrame:
             "patient_id": patient_ids,
             "age": ages,
             "sex": sexes,
-            "provider_id": provider_id,
+            "cluster_id": cluster_id,
             "diagnosis_codes": icd_codes,
             "has_diabetes": disease_flags["diabetes"],
             "has_cvd": disease_flags["cvd"],

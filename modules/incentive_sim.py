@@ -1,36 +1,84 @@
 """Performance-based incentive simulation — four mechanisms."""
 
+from __future__ import annotations
+
 import pandas as pd
 import numpy as np
 
 
-def compute_composite_score(perf: dict, weights: dict | None = None) -> float:
-    """Weighted composite performance score (0-100 scale).
+def compute_composite_score(
+    cluster_kpis: dict,
+    kpi_categories: dict,
+    category_weights: dict,
+    kpi_active: dict,
+    kpi_weights: dict | None = None,
+) -> tuple[float, dict]:
+    """Calculate weighted composite score across KPI categories.
 
-    perf keys: diabetes_control_rate, readmission_rate_30day,
-               patient_satisfaction_score, cost_efficiency_ratio
+    Args:
+        cluster_kpis: {kpi_id: value} for this cluster
+        kpi_categories: the KPI_CATEGORIES structure
+        category_weights: {category_id: weight_pct} (should sum to 100)
+        kpi_active: {kpi_id: bool} — which KPIs are currently active
+        kpi_weights: {kpi_id: weight} within-category weights (equal if None)
+
+    Returns:
+        (composite_score, {category_id: category_score})
     """
-    if weights is None:
-        weights = {
-            "diabetes_control_rate": 0.25,
-            "readmission_rate_30day": 0.25,
-            "patient_satisfaction_score": 0.25,
-            "cost_efficiency_ratio": 0.25,
-        }
+    category_scores = {}
 
-    # Normalise each metric to 0-100 where higher = better
-    scores = {
-        "diabetes_control_rate": perf["diabetes_control_rate"],           # already 0-100
-        "readmission_rate_30day": max(0, 100 - perf["readmission_rate_30day"] * 4),  # lower is better: 0% -> 100, 25% -> 0
-        "patient_satisfaction_score": perf["patient_satisfaction_score"],  # already 0-100
-        "cost_efficiency_ratio": max(0, min(100, (1.2 - perf["cost_efficiency_ratio"]) / 0.5 * 100)),  # <0.7 -> 100, >1.2 -> 0
-    }
+    for cat_id, cat_def in kpi_categories.items():
+        active_kpis = [
+            kpi_id for kpi_id in cat_def["kpis"]
+            if kpi_active.get(kpi_id, cat_def["kpis"][kpi_id]["wave_1_active"])
+        ]
 
-    composite = sum(scores[k] * weights[k] for k in weights)
-    return round(composite, 2)
+        if not active_kpis:
+            category_scores[cat_id] = 0.0
+            continue
+
+        normalised = []
+        for kpi_id in active_kpis:
+            kpi_def = cat_def["kpis"][kpi_id]
+            raw = cluster_kpis.get(kpi_id, 0)
+            kpi_range = kpi_def["max"] - kpi_def["min"]
+
+            if kpi_range == 0:
+                score = 50.0
+            elif kpi_def["direction"] == "higher_better":
+                score = (raw - kpi_def["min"]) / kpi_range * 100
+            else:  # lower_better
+                score = (kpi_def["max"] - raw) / kpi_range * 100
+
+            normalised.append(max(0, min(100, score)))
+
+        category_scores[cat_id] = sum(normalised) / len(normalised)
+
+    # Weighted composite across categories
+    total_weight = sum(category_weights.get(c, 0) for c in category_scores)
+    if total_weight == 0:
+        return 0.0, category_scores
+
+    composite = sum(
+        category_scores[c] * category_weights.get(c, 0)
+        for c in category_scores
+    ) / total_weight
+
+    return round(composite, 2), category_scores
 
 
-# ─── Mechanism 1: Performance Pool ────────────────────────────────────────────
+def _get_score(cid: str, perf_data: dict, score_args: dict) -> float:
+    """Helper to compute composite score for a cluster, returning just the float."""
+    score, _ = compute_composite_score(
+        perf_data[cid],
+        score_args["kpi_categories"],
+        score_args["category_weights"],
+        score_args["kpi_active"],
+    )
+    return score
+
+
+# ─── Mechanism 1: Performance Pool ───────────────────────────────────────────
 
 def performance_pool(
     rac_payments: pd.DataFrame,
@@ -38,18 +86,14 @@ def performance_pool(
     withhold_pct: float,
     target: float,
     floor: float,
-    metric_weights: dict | None = None,
+    score_args: dict | None = None,
 ) -> pd.DataFrame:
-    """Calculate performance pool withhold and earn-back per provider.
-
-    Returns DataFrame with columns:
-      provider_id, pool_size, composite_score, earned_back_pct, earned_back, net_impact
-    """
+    """Calculate performance pool withhold and earn-back per cluster."""
     rows = []
     for _, row in rac_payments.iterrows():
-        pid = row["provider_id"]
+        cid = row["cluster_id"]
         pool = row["total_rac_payment"] * (withhold_pct / 100)
-        score = compute_composite_score(perf_data[pid], metric_weights)
+        score = _get_score(cid, perf_data, score_args)
 
         if score >= target:
             earned_pct = 100.0
@@ -60,7 +104,7 @@ def performance_pool(
 
         earned = pool * (earned_pct / 100)
         rows.append({
-            "provider_id": pid,
+            "cluster_id": cid,
             "pool_size": pool,
             "composite_score": score,
             "earned_back_pct": round(earned_pct, 1),
@@ -70,24 +114,20 @@ def performance_pool(
     return pd.DataFrame(rows)
 
 
-# ─── Mechanism 2: RAC-Adjusted Expectations ───────────────────────────────────
+# ─── Mechanism 2: RAC-Adjusted Expectations ──────────────────────────────────
 
 def rac_adjusted_expectations(
     rac_payments: pd.DataFrame,
     perf_data: dict[str, dict],
-    metric_weights: dict | None = None,
+    score_args: dict | None = None,
 ) -> pd.DataFrame:
-    """Compute risk-adjusted performance expectations.
-
-    Returns DataFrame with provider_id, avg_risk_score, composite_score,
-    expected_score (from regression), residual.
-    """
+    """Compute risk-adjusted performance expectations."""
     rows = []
     for _, row in rac_payments.iterrows():
-        pid = row["provider_id"]
-        score = compute_composite_score(perf_data[pid], metric_weights)
+        cid = row["cluster_id"]
+        score = _get_score(cid, perf_data, score_args)
         rows.append({
-            "provider_id": pid,
+            "cluster_id": cid,
             "avg_risk_score": row["avg_risk_score"],
             "composite_score": score,
         })
@@ -110,57 +150,59 @@ def rac_adjusted_expectations(
     return df
 
 
-# ─── Mechanism 3: Shared Savings with Quality Gates ──────────────────────────
+# ─── Mechanism 3: Shared Savings with Quality Gates ─────────────────────────
 
 def shared_savings(
     rac_payments: pd.DataFrame,
     perf_data: dict[str, dict],
     quality_gate_diabetes: float,
     quality_gate_readmission: float,
-    quality_gate_satisfaction: float,
+    quality_gate_composite: float,
     cnhi_share_pct: float,
-    provider_share_pct: float,
+    cluster_share_pct: float,
+    score_args: dict | None = None,
 ) -> pd.DataFrame:
-    """Calculate shared savings with quality gate enforcement.
-
-    Returns DataFrame per provider with savings breakdown.
-    """
+    """Calculate shared savings with quality gate enforcement."""
     rows = []
     for _, row in rac_payments.iterrows():
-        pid = row["provider_id"]
-        p = perf_data[pid]
+        cid = row["cluster_id"]
+        p = perf_data[cid]
         rac_total = row["total_rac_payment"]
         cer = p["cost_efficiency_ratio"]
 
         gross_savings = rac_total * (1 - cer)
 
         # Quality gate checks
-        gate_diabetes = p["diabetes_control_rate"] >= quality_gate_diabetes
-        gate_readmission = p["readmission_rate_30day"] <= quality_gate_readmission
-        gate_satisfaction = p["patient_satisfaction_score"] >= quality_gate_satisfaction
-        gate_passed = gate_diabetes and gate_readmission and gate_satisfaction
+        gate_diabetes = p.get("diabetes_hba1c_control", p.get("diabetes_control_rate", 0)) >= quality_gate_diabetes
+        gate_readmission = p.get("readmission_30day", p.get("readmission_rate_30day", 30)) <= quality_gate_readmission
+
+        # Gate 3: composite score threshold
+        score = _get_score(cid, perf_data, score_args)
+        gate_composite = score >= quality_gate_composite
+
+        gate_passed = gate_diabetes and gate_readmission and gate_composite
 
         if gate_passed and gross_savings > 0:
             eligible_savings = gross_savings
             cnhi_share = eligible_savings * (cnhi_share_pct / 100)
-            provider_share = eligible_savings * (provider_share_pct / 100)
+            cluster_share = eligible_savings * (cluster_share_pct / 100)
         else:
             eligible_savings = 0.0
             cnhi_share = 0.0
-            provider_share = 0.0
+            cluster_share = 0.0
 
         rows.append({
-            "provider_id": pid,
+            "cluster_id": cid,
             "rac_budget": rac_total,
             "actual_spend": rac_total * cer,
             "gross_savings": gross_savings,
             "gate_diabetes": gate_diabetes,
             "gate_readmission": gate_readmission,
-            "gate_satisfaction": gate_satisfaction,
+            "gate_composite": gate_composite,
             "gate_passed": gate_passed,
             "eligible_savings": eligible_savings,
             "cnhi_share": cnhi_share,
-            "provider_share": provider_share,
+            "cluster_share": cluster_share,
         })
     return pd.DataFrame(rows)
 
@@ -171,16 +213,13 @@ def tiered_tranches(
     rac_payments: pd.DataFrame,
     perf_data: dict[str, dict],
     tiers: list[tuple[int, int, float, str]],
-    metric_weights: dict | None = None,
+    score_args: dict | None = None,
 ) -> pd.DataFrame:
-    """Assign tier and calculate bonus per provider.
-
-    tiers: list of (min_score, max_score, payout_pct, tier_name)
-    """
+    """Assign tier and calculate bonus per cluster."""
     rows = []
     for _, row in rac_payments.iterrows():
-        pid = row["provider_id"]
-        score = compute_composite_score(perf_data[pid], metric_weights)
+        cid = row["cluster_id"]
+        score = _get_score(cid, perf_data, score_args)
 
         tier_name = "No Payout"
         payout_pct = 0.0
@@ -192,7 +231,7 @@ def tiered_tranches(
 
         bonus = row["total_rac_payment"] * (payout_pct / 100)
         rows.append({
-            "provider_id": pid,
+            "cluster_id": cid,
             "composite_score": score,
             "tier": tier_name,
             "payout_pct": payout_pct,
@@ -209,27 +248,26 @@ def combined_summary(
     savings_df: pd.DataFrame,
     tier_df: pd.DataFrame,
 ) -> pd.DataFrame:
-    """Merge all mechanisms into a single per-provider summary."""
+    """Merge all mechanisms into a single per-cluster summary."""
     rows = []
     for _, row in rac_payments.iterrows():
-        pid = row["provider_id"]
+        cid = row["cluster_id"]
         rac_base = row["total_rac_payment"]
 
-        pool_row = pool_df[pool_df["provider_id"] == pid].iloc[0]
-        sav_row = savings_df[savings_df["provider_id"] == pid].iloc[0]
-        tier_row = tier_df[tier_df["provider_id"] == pid].iloc[0]
+        pool_row = pool_df[pool_df["cluster_id"] == cid].iloc[0]
+        sav_row = savings_df[savings_df["cluster_id"] == cid].iloc[0]
+        tier_row = tier_df[tier_df["cluster_id"] == cid].iloc[0]
 
         pool_earned = pool_row["earned_back"]
         pool_withheld = pool_row["pool_size"]
-        savings_share = sav_row["provider_share"]
+        savings_share = sav_row["cluster_share"]
         tier_bonus = tier_row["bonus"]
 
-        # Net payment = RAC base - pool withheld + pool earned back + savings share + tier bonus
         total = rac_base - pool_withheld + pool_earned + savings_share + tier_bonus
         vs_base = total - rac_base
 
         rows.append({
-            "provider_id": pid,
+            "cluster_id": cid,
             "rac_base": rac_base,
             "pool_withheld": pool_withheld,
             "pool_earned": pool_earned,
@@ -241,14 +279,12 @@ def combined_summary(
 
     df = pd.DataFrame(rows)
 
-    # Add CNHI row
     cnhi_total_incentives = (
         df["pool_earned"].sum()
         - df["pool_withheld"].sum()
         + df["savings_share"].sum()
         + df["tier_bonus"].sum()
     )
-    # Note: CNHI also keeps its share of savings
     cnhi_savings_retained = savings_df["cnhi_share"].sum()
 
     return df, cnhi_total_incentives, cnhi_savings_retained

@@ -1,5 +1,7 @@
 """Risk-Adjusted Capitation calculation engine."""
 
+from __future__ import annotations
+
 import numpy as np
 import pandas as pd
 
@@ -74,7 +76,6 @@ def calculate_risk_scores(
     scores = np.maximum(scores, 0.1)
 
     # Normalize so the population-wide mean risk score equals 1.0
-    # This is standard practice in HCC risk adjustment (CMS applies a similar step)
     pop_mean = scores.mean()
     if pop_mean > 0:
         scores = scores / pop_mean
@@ -87,17 +88,17 @@ def calculate_rac_payments(
     risk_scores: pd.Series,
     base_pmpm: float,
 ) -> pd.DataFrame:
-    """Calculate annual RAC payments per patient and summarise by provider.
+    """Calculate annual RAC payments per patient and summarise by cluster.
 
-    Returns a summary DataFrame with one row per provider.
+    Returns a summary DataFrame with one row per cluster.
     """
     annual_payment = base_pmpm * risk_scores * 12
 
-    df = population[["provider_id"]].copy()
+    df = population[["cluster_id"]].copy()
     df["risk_score"] = risk_scores
     df["annual_payment"] = annual_payment
 
-    summary = df.groupby("provider_id").agg(
+    summary = df.groupby("cluster_id").agg(
         panel_size=("risk_score", "count"),
         avg_risk_score=("risk_score", "mean"),
         total_rac_payment=("annual_payment", "sum"),

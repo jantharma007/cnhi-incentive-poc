@@ -37,31 +37,39 @@ DISEASE_PREVALENCE = {
 COMORBIDITY_SECOND_CHANCE = 0.40  # 40% chance of a second condition given one
 COMORBIDITY_THIRD_CHANCE = 0.15   # 15% chance of a third given two
 
-# Provider profiles
-# name, target_size, age_skew, disease_multiplier, target_avg_risk
-PROVIDER_PROFILES = {
+# Health cluster profiles (ACO-style networks serving geographically defined populations)
+CLUSTER_PROFILES = {
     "A": {
-        "name": "Al-Riyadh Public Hospital",
+        "name": "Riyadh First Health Cluster",
+        "type": "public",
+        "description": "Large urban cluster serving older, higher-acuity population. Hub: King Saud Medical City.",
         "target_size": 20_000,
-        "age_skew": "older",       # skews older/sicker
-        "disease_multiplier": 1.55, # elevated chronic disease rates
+        "age_skew": "older",
+        "disease_multiplier": 1.55,
         "target_avg_risk": 1.35,
     },
     "B": {
-        "name": "National Care Group (Private)",
+        "name": "Eastern Health Cluster",
+        "type": "public",
+        "description": "Mixed urban-suburban cluster with balanced population demographics. Hub: Dammam Medical Complex.",
         "target_size": 18_000,
         "age_skew": "balanced",
         "disease_multiplier": 0.95,
         "target_avg_risk": 1.00,
     },
     "C": {
-        "name": "Al-Hayat Clinic (Private)",
+        "name": "Madinah Health Cluster",
+        "type": "public",
+        "description": "Mid-sized cluster serving younger population with seasonal Hajj/Umrah demand. Hub: King Fahad Hospital Madinah.",
         "target_size": 12_000,
-        "age_skew": "younger",     # skews younger/healthier
+        "age_skew": "younger",
         "disease_multiplier": 0.50,
         "target_avg_risk": 0.72,
     },
 }
+
+# Legacy alias — removed after full migration
+PROVIDER_PROFILES = CLUSTER_PROFILES
 
 # ICD-10 code pools per condition (representative subset)
 ICD10_CODES = {
