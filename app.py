@@ -79,15 +79,15 @@ st.markdown(f"""
         font-weight: 600;
         font-size: 0.85rem;
     }}
-    /* Prominent top-level tabs ONLY (first .stTabs on the page) */
-    .main > .block-container > div > div > .stTabs > [data-baseweb="tab-list"] {{
+    /* Top-level nav tabs — targeted via #top-nav-marker + sibling */
+    #top-nav-marker + div [data-baseweb="tab-list"] {{
         background: linear-gradient(135deg, {COLORS['navy']} 0%, #1a2d4a 100%) !important;
         border-radius: 10px !important;
         padding: 10px 12px !important;
         gap: 8px !important;
         margin-bottom: 16px !important;
     }}
-    .main > .block-container > div > div > .stTabs > [data-baseweb="tab-list"] > [data-baseweb="tab"] {{
+    #top-nav-marker + div [data-baseweb="tab-list"] [data-baseweb="tab"] {{
         font-size: 2.5rem !important;
         font-weight: 700 !important;
         padding: 18px 40px !important;
@@ -97,20 +97,19 @@ st.markdown(f"""
         height: auto !important;
         letter-spacing: 0.5px !important;
     }}
-    .main > .block-container > div > div > .stTabs > [data-baseweb="tab-list"] > [data-baseweb="tab"] > div,
-    .main > .block-container > div > div > .stTabs > [data-baseweb="tab-list"] > [data-baseweb="tab"] > div > p {{
+    #top-nav-marker + div [data-baseweb="tab-list"] [data-baseweb="tab"] * {{
         font-size: 2.5rem !important;
         font-weight: 700 !important;
     }}
-    .main > .block-container > div > div > .stTabs > [data-baseweb="tab-list"] [aria-selected="true"] {{
+    #top-nav-marker + div [data-baseweb="tab-list"] [aria-selected="true"] {{
         background-color: {COLORS['teal']} !important;
         color: {COLORS['navy']} !important;
     }}
-    .main > .block-container > div > div > .stTabs > [data-baseweb="tab-list"] > [data-baseweb="tab"]:hover {{
+    #top-nav-marker + div [data-baseweb="tab-list"] [data-baseweb="tab"]:hover {{
         color: white !important;
     }}
-    .main > .block-container > div > div > .stTabs > [data-baseweb="tab-list"] > [data-baseweb="tab-highlight"],
-    .main > .block-container > div > div > .stTabs > [data-baseweb="tab-list"] > [data-baseweb="tab-border"] {{
+    #top-nav-marker + div [data-baseweb="tab-highlight"],
+    #top-nav-marker + div [data-baseweb="tab-border"] {{
         display: none !important;
     }}
 </style>
@@ -345,6 +344,7 @@ rac_summary = calculate_rac_payments(population, risk_scores, base_pmpm)
 
 
 # ─── Tabs ───────────────────────────────────────────────────────────────────
+st.markdown('<div id="top-nav-marker"></div>', unsafe_allow_html=True)
 tab_docs, tab_platform = st.tabs(["📖 Documentation", "🏥 Platform"])
 
 with tab_docs:
