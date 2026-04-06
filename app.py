@@ -79,15 +79,15 @@ st.markdown(f"""
         font-weight: 600;
         font-size: 0.85rem;
     }}
-    /* Prominent top-level tabs */
-    .stTabs [data-baseweb="tab-list"] {{
+    /* Prominent top-level tabs ONLY (first .stTabs on the page) */
+    .main > .block-container > div > div > .stTabs > [data-baseweb="tab-list"] {{
         background: linear-gradient(135deg, {COLORS['navy']} 0%, #1a2d4a 100%) !important;
         border-radius: 10px !important;
         padding: 10px 12px !important;
         gap: 8px !important;
         margin-bottom: 16px !important;
     }}
-    .stTabs [data-baseweb="tab"] {{
+    .main > .block-container > div > div > .stTabs > [data-baseweb="tab-list"] > [data-baseweb="tab"] {{
         font-size: 2.5rem !important;
         font-weight: 700 !important;
         padding: 18px 40px !important;
@@ -97,24 +97,20 @@ st.markdown(f"""
         height: auto !important;
         letter-spacing: 0.5px !important;
     }}
-    .stTabs [aria-selected="true"] {{
-        background-color: {COLORS['teal']} !important;
-        color: {COLORS['navy']} !important;
-    }}
-    .stTabs [data-baseweb="tab"]:hover {{
-        color: white !important;
-    }}
-    .stTabs [data-baseweb="tab"] > div {{
-        font-size: 2.5rem !important;
-    }}
-    .stTabs [data-baseweb="tab"] > div > p {{
+    .main > .block-container > div > div > .stTabs > [data-baseweb="tab-list"] > [data-baseweb="tab"] > div,
+    .main > .block-container > div > div > .stTabs > [data-baseweb="tab-list"] > [data-baseweb="tab"] > div > p {{
         font-size: 2.5rem !important;
         font-weight: 700 !important;
     }}
-    .stTabs [data-baseweb="tab-highlight"] {{
-        display: none !important;
+    .main > .block-container > div > div > .stTabs > [data-baseweb="tab-list"] [aria-selected="true"] {{
+        background-color: {COLORS['teal']} !important;
+        color: {COLORS['navy']} !important;
     }}
-    .stTabs [data-baseweb="tab-border"] {{
+    .main > .block-container > div > div > .stTabs > [data-baseweb="tab-list"] > [data-baseweb="tab"]:hover {{
+        color: white !important;
+    }}
+    .main > .block-container > div > div > .stTabs > [data-baseweb="tab-list"] > [data-baseweb="tab-highlight"],
+    .main > .block-container > div > div > .stTabs > [data-baseweb="tab-list"] > [data-baseweb="tab-border"] {{
         display: none !important;
     }}
 </style>
