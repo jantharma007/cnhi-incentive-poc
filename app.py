@@ -80,31 +80,34 @@ st.markdown(f"""
         font-size: 0.85rem;
     }}
     /* Prominent top-level tabs */
-    div[data-testid="stTabs"] > div[role="tablist"] {{
-        background: linear-gradient(135deg, {COLORS['navy']} 0%, #1a2d4a 100%);
-        border-radius: 10px;
-        padding: 6px 8px;
-        gap: 4px;
-        margin-bottom: 16px;
+    .stTabs [data-baseweb="tab-list"] {{
+        background: linear-gradient(135deg, {COLORS['navy']} 0%, #1a2d4a 100%) !important;
+        border-radius: 10px !important;
+        padding: 10px 12px !important;
+        gap: 8px !important;
+        margin-bottom: 16px !important;
     }}
-    div[data-testid="stTabs"] > div[role="tablist"] > button {{
-        font-size: 4rem;
-        font-weight: 700;
-        padding: 20px 48px;
-        border-radius: 8px;
-        color: {COLORS['mid_grey']};
-        border: none;
+    .stTabs [data-baseweb="tab"] {{
+        font-size: 2.5rem !important;
+        font-weight: 700 !important;
+        padding: 18px 40px !important;
+        border-radius: 8px !important;
+        color: {COLORS['mid_grey']} !important;
+        border: none !important;
+        height: auto !important;
     }}
-    div[data-testid="stTabs"] > div[role="tablist"] > button[aria-selected="true"] {{
-        background-color: {COLORS['teal']};
-        color: white;
+    .stTabs [aria-selected="true"] {{
+        background-color: {COLORS['teal']} !important;
+        color: white !important;
     }}
-    div[data-testid="stTabs"] > div[role="tablist"] > button:hover {{
-        color: white;
+    .stTabs [data-baseweb="tab"]:hover {{
+        color: white !important;
     }}
-    /* Hide the default tab underline */
-    div[data-testid="stTabs"] > div[role="tablist"] > button[aria-selected="true"]::after {{
-        display: none;
+    .stTabs [data-baseweb="tab-highlight"] {{
+        display: none !important;
+    }}
+    .stTabs [data-baseweb="tab-border"] {{
+        display: none !important;
     }}
 </style>
 """, unsafe_allow_html=True)
