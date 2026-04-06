@@ -88,9 +88,9 @@ st.markdown(f"""
         margin-bottom: 16px;
     }}
     div[data-testid="stTabs"] > div[role="tablist"] > button {{
-        font-size: 2rem;
+        font-size: 4rem;
         font-weight: 700;
-        padding: 14px 36px;
+        padding: 20px 48px;
         border-radius: 8px;
         color: {COLORS['mid_grey']};
         border: none;
